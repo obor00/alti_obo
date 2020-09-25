@@ -1,8 +1,24 @@
 This is another altimeter for height measurement. Its purpose is to measure height and provide various other information such as pressure, humidity, temperature.
 It has no LCD or display, all interaction are done through Wifi and Web access.
-The first time, connect to the alimeter from  a PC or smartphone and search the  wifi network named ESP_ALTI. Connect to it and enter password  "12345678".
-Do not forget to change the  Wifi network name AND password to your favorites.. 
+To connect to the altimeter from  a PC or smartphone,  search a  wifi network named ESP_ALTI. Then connect and enter password  "12345678".
+Once you are connected, use a Web browser and access the page "http://192.168.4.1". All parameters will be displayed.
+Do not forget to change the  Wifi network name AND password to your favorites. 
 
+ ![hardware](images/wemos_bmp.png)
+ ![screenshot](images/screenshot.png)
+
+Informations displayed
+----------------------
+* Maximum Height 
+* Current height
+* Minimum Height 
+* last maximum height from previous poweron
+* temperature
+* pressure
+* humidity
+* delay betwwen measurements
+* time since power on
+* ...
 
 Hardware
 --------
