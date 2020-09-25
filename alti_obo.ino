@@ -1,8 +1,8 @@
 // Alti OBO
 // libraries used:
-// WIFI and AP: https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/examples/WiFiAccessPoint/WiFiAccessPoint.ino
+// WIFI and AP: https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/
 // BMP280: https://github.com/embeddedadventures/BME280
-// Kalmann filter: https://github.com/denyssene/SimpleKalmanFilter/tree/master/examples/AltitudeKalmanFilterExample
+// Kalmann filter: https://github.com/denyssene/SimpleKalmanFilter
 //
 // Hardware: Wemos D1 Mini  + BMP 280
 //     SCL -> D1
