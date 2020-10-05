@@ -65,7 +65,7 @@ int discard_first = DISCARD_FIRST;
 
 SimpleKalmanFilter pressureKalmanFilter(k_e_mea, k_e_est, k_q);
 
-void getCompensatedMeasurements(void) 
+void getCompensatedMeasurements(void)
 {
 	temp      = BME280.getTemperature();
 	humidity  = BME280.getHumidity();
@@ -92,24 +92,22 @@ void compute()
 	height_filtered = altitudeMostAccurate - start_altitude ;
 
 	if (height_filtered > height_max) {
-		height_max = height_filtered ; 
+		height_max = height_filtered ;
 		EEPROM.put (ADDR_EEPROM_LAST_HEIGHT, height_max);
 		EEPROM.commit();
 	}
-	else if (height_filtered < height_min) 
+	else if (height_filtered < height_min)
 		height_min = height_filtered;
 
-#if 0
+	Serial.print (_altitude,2);
+	Serial.print (",");
 	Serial.print (altitudeMostAccurate,2);
 	Serial.print (",");
-	Serial.print (start_altitude,2);
-	Serial.print (",");
-	Serial.print (height_filtered,2);
+	Serial.print (temp,2);
 	Serial.println ("");
-#endif
 }
 
-void handleRoot() 
+void handleRoot()
 {
 	String page = String(F("<H1>Alti OBO</H1><H2>"));
 	page +=  String(F("<br>Hauteur max = "));
@@ -132,13 +130,13 @@ void handleRoot()
 	page +=  String(F(" C"));
 	page +=  String(F("<br>Humidité    = "));
 	page +=  String(humidityMostAccurate,2);
-	page +=  String(F(" %"));  
+	page +=  String(F(" %"));
 	page +=  String(F("<br>Pression    = "));
 	page +=  String(pressureMostAccurate,2);
-	page +=  String(F(" mBar"));  
+	page +=  String(F(" mBar"));
 	page +=  String(F("<br>Altitude    = "));
 	page +=  String(altitudeMostAccurate,2);
-	page +=  String(F(" m"));  
+	page +=  String(F(" m"));
 	page +=  String(F("<br>Délai entre mesures = "));
 	page +=  String(delta_time,8);
 	page +=  String(F(" ms"));
@@ -151,7 +149,7 @@ void handleRoot()
 	server.send(200, "text/html; charset=utf-8", page);
 }
 
-void setup() 
+void setup()
 {
 	delay(1000);
 	Serial.begin(115200);
@@ -203,17 +201,17 @@ void setup()
 	EEPROM.get (ADDR_EEPROM_LAST_HEIGHT, eeprom_last_height);
 }
 
-void loop() 
+void loop()
 {
 	delay(10);  // implicit yield
 
 	delta_time = millis() - cur_time;
 	cur_time = millis();
 
-	//while (BME280.isMeasuring()) ; 
-	//while (BME280.doingIMUpdate()) ; 
+	//while (BME280.isMeasuring()) ;
+	//while (BME280.doingIMUpdate()) ;
 
-	// read out the data 
+	// read out the data
 	BME280.readMeasurements();
 	getCompensatedMeasurements();
 	compute();
