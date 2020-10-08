@@ -185,8 +185,8 @@ void setup()
 	BME280.writeStandbyTime(tsb_0p5ms);        // tsb = 0.5ms
 	BME280.writeFilterCoefficient(fc_16);      // IIR Filter coefficient 16
 	BME280.writeOversamplingPressure(os16x);    // pressure x16
-	BME280.writeOversamplingTemperature(os2x);  // temperature x2
-	BME280.writeOversamplingHumidity(os1x);     // humidity x1
+	BME280.writeOversamplingTemperature(osSkipped);  // temperature x2
+	BME280.writeOversamplingHumidity(osSkipped);     // humidity x1
 
 	BME280.writeMode(smNormal);
 
