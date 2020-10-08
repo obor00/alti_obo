@@ -17,10 +17,14 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ! reset  BMP :  power off/on
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#include <BME280_MOD-1022.h>
-#include "avr/dtostrf.h"
+// #include "avr/dtostrf.h"
 #include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 #include <float.h>
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+Adafruit_BME280 bme; // I2C
 
 #include <SimpleKalmanFilter.h>
 
@@ -43,8 +47,7 @@ unsigned long start_time = 0;
 unsigned long cur_time = 0;
 unsigned long delta_time = 0;
 
-float temp, humidity,  pressure, pressureMoreAccurate;
-double tempMostAccurate, humidityMostAccurate, pressureMostAccurate;
+float temp, pressure, altitude;
 float altitudeMostAccurate, start_altitude;
 float height_filtered = 0;
 float height_max = FLT_MIN;
@@ -65,24 +68,9 @@ int discard_first = DISCARD_FIRST;
 
 SimpleKalmanFilter pressureKalmanFilter(k_e_mea, k_e_est, k_q);
 
-void getCompensatedMeasurements(void)
-{
-	temp      = BME280.getTemperature();
-	humidity  = BME280.getHumidity();
-	pressure  = BME280.getPressure();
-
-	pressureMoreAccurate = BME280.getPressureMoreAccurate();  // t_fine already calculated from getTemperaure() above
-
-	tempMostAccurate     = BME280.getTemperatureMostAccurate();
-	humidityMostAccurate = BME280.getHumidityMostAccurate();
-	pressureMostAccurate = BME280.getPressureMostAccurate();
-}
-
 void compute()
 {
-	float _altitude = 44330.0 * (1.0 - pow(pressureMostAccurate / 1013.25 , 0.19026));
-
-	altitudeMostAccurate = pressureKalmanFilter.updateEstimate(_altitude);
+	altitudeMostAccurate = pressureKalmanFilter.updateEstimate(altitude);
 
 	if (discard_first > 0) {
 		start_altitude = altitudeMostAccurate;
@@ -99,42 +87,42 @@ void compute()
 	else if (height_filtered < height_min)
 		height_min = height_filtered;
 
-	Serial.print (_altitude,2);
-	Serial.print (",");
-	Serial.print (altitudeMostAccurate,2);
-	Serial.print (",");
-	Serial.print (temp,2);
-	Serial.println ("");
 }
 
 void handleRoot()
 {
 	String page = String(F("<H1>Alti OBO</H1><H2>"));
 	page +=  String(F("<br>Hauteur max = "));
-	page +=  String(height_max,1);
+	page +=  String(height_max,2);
 	page +=  String(F(" m"));
 	page +=  String(F("<br>Hauteur courante = "));
-	page +=  String(height_filtered,1);
+	page +=  String(height_filtered,2);
 	page +=  String(F(" m"));
 	page +=  String(F("<br>Hauteur min = "));
-	page +=  String(height_min,1);
+	page +=  String(height_min,2);
 	page +=  String(F(" m"));
 
 	page +=  String(F("<br>Derniere hauteur max = "));
-	page +=  String(eeprom_last_height,1);
+	page +=  String(eeprom_last_height,2);
 	page +=  String(F(" m"));
 
 	page +=  String(F("</H2><H3>"));
+	page +=  String(F("<br>Altitude reference   = "));
+	page +=  String(start_altitude,2);
+	page +=  String(F(" m"));
 	page +=  String(F("<br>Temperature = "));
-	page +=  String(tempMostAccurate,2);
+	page +=  String(temp,2);
 	page +=  String(F(" C"));
-	page +=  String(F("<br>Humidité    = "));
-	page +=  String(humidityMostAccurate,2);
-	page +=  String(F(" %"));
-	page +=  String(F("<br>Pression    = "));
-	page +=  String(pressureMostAccurate,2);
+//	page +=  String(F("<br>Humidité    = "));
+//	page +=  String(humidityMostAccurate,2);
+//	page +=  String(F(" %"));
+	page +=  String(F("<br>Pression   = "));
+	page +=  String(pressure,2);
 	page +=  String(F(" mBar"));
 	page +=  String(F("<br>Altitude    = "));
+	page +=  String(altitude,2);
+	page +=  String(F(" m"));
+	page +=  String(F("<br>Altitude corrigée   = "));
 	page +=  String(altitudeMostAccurate,2);
 	page +=  String(F(" m"));
 	page +=  String(F("<br>Délai entre mesures = "));
@@ -151,70 +139,81 @@ void handleRoot()
 
 void setup()
 {
-	delay(1000);
-	Serial.begin(115200);
-	Serial.println();
-	Serial.print("Configuring access point...");
-	/* You can remove the password parameter if you want the AP to be open. */
-	WiFi.softAP(ssid, password);
+    bool status;
 
-	IPAddress myIP = WiFi.softAPIP();
-	Serial.print("AP IP address: ");
-	Serial.println(myIP);
-	server.on("/", handleRoot);
-	server.begin();
-	Serial.println("HTTP server started");
+    delay(1000);
+    Serial.begin(115200);
+    Serial.println();
+    Serial.print("Configuring access point...");
+    /* You can remove the password parameter if you want the AP to be open. */
+    WiFi.softAP(ssid, password);
 
-	Wire.begin();
-	start_time = millis();
+    IPAddress myIP = WiFi.softAPIP();
+    Serial.print("AP IP address: ");
+    Serial.println(myIP);
+    server.on("/", handleRoot);
+    server.begin();
+    Serial.println("HTTP server started");
 
-	// init bmp280
-	uint8_t chipID;
+    TwoWire theWire;
+    status = bme.begin(0x76 , &theWire);
+    if (!status) {
+        Serial.println("Could not find a valid BME280 sensor, check wiring!");
+        while (1);
+    }
 
-	Serial.println("Welcome to ALTI Obo");
-	chipID = BME280.readChipId();
+    Serial.println();
+    // indoor navigation
+    Serial.println("-- Indoor Navigation Scenario --");
+    Serial.println("normal mode, 16x pressure / 2x temperature / 1x humidity oversampling,");
+    Serial.println("0.5ms standby period, filter 16x");
+    bme.setSampling(Adafruit_BME280::MODE_NORMAL,
+            Adafruit_BME280::SAMPLING_X2,  // temperature
+            Adafruit_BME280::SAMPLING_X16, // pressure
+            Adafruit_BME280::SAMPLING_X1,  // humidity
+            Adafruit_BME280::FILTER_X16,
+            Adafruit_BME280::STANDBY_MS_0_5 );
 
-	// find the chip ID out just for fun
-	Serial.print("ChipID = 0x");
-	Serial.print(chipID, HEX);
+    start_time = millis();
+
+    Serial.println("Welcome to ALTI Obo");
 
 
-	// need to read the NVM compensation parameters
-	BME280.readCompensationParams();
+    // warmup
+    // for (int i=0; i < WARMUP; i++) {
+    // 	delay (10);
+    // 	BME280.readMeasurements();
+    // }
 
-	BME280.writeStandbyTime(tsb_0p5ms);        // tsb = 0.5ms
-	BME280.writeFilterCoefficient(fc_16);      // IIR Filter coefficient 16
-	BME280.writeOversamplingPressure(os16x);    // pressure x16
-	BME280.writeOversamplingTemperature(osSkipped);  // temperature x2
-	BME280.writeOversamplingHumidity(osSkipped);     // humidity x1
+    // EEPROM
+    EEPROM.begin(512);
+    EEPROM.get (ADDR_EEPROM_LAST_HEIGHT, eeprom_last_height);
 
-	BME280.writeMode(smNormal);
-
-	// warmup
-	for (int i=0; i < WARMUP; i++) {
-		delay (10);
-		BME280.readMeasurements();
-	}
-
-	// EEPROM
-	EEPROM.begin(512);
-	EEPROM.get (ADDR_EEPROM_LAST_HEIGHT, eeprom_last_height);
+    while (1)
+    {
+        myloop();
+    }
 }
 
-void loop()
+void myloop()
 {
-	delay(10);  // implicit yield
+    delta_time = millis() - cur_time;
+    cur_time = millis();
 
-	delta_time = millis() - cur_time;
-	cur_time = millis();
+    temp = bme.readTemperature();
+    pressure = bme.readPressure() / 100.0F;
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    compute();
 
-	//while (BME280.isMeasuring()) ;
-	//while (BME280.doingIMUpdate()) ;
-
-	// read out the data
-	BME280.readMeasurements();
-	getCompensatedMeasurements();
-	compute();
-
-	server.handleClient();
+#ifdef TRACE
+    Serial.print(temp);
+    Serial.print(",");
+    Serial.print(pressure);
+    Serial.print(",");
+    Serial.println(altitude);
+#endif
+    server.handleClient();
+    delay(10);
 }
+
+void loop() {}
